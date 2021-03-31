@@ -371,6 +371,135 @@ OLED を有効にします。
    }
 ```
 
+
+## Lifegame
+
+コンウェイのライフゲームです。
+
+[ライフゲーム - Wikipedia](https://ja.wikipedia.org/wiki/%E3%83%A9%E3%82%A4%E3%83%95%E3%82%B2%E3%83%BC%E3%83%A0)
+
+Tetrisと同じく、
+128x32 の OLED しか想定していません。
+確認済み動作環境は Claw44 に付いてくる 128x32 の SSD1306 の OLED だけです。
+
+
+### 遊び方
+
+操作なしでスタートします。
+遊ぶというよりかは、眺めるという感じのシミュレーションタイプです。
+
+ただし、ライフゲームは全滅したり、同じパターンの繰り返しが続くことがありますので、
+最初からやり直す機能だけはつけています。
+（詳細はインストール方法をみて下さい）
+
+
+### インストール方法
+
+基本的にTetrisのインストール方法に従ってください。
+下記にLifegame用の差分を示しますので、
+該当部分をTetrisから読み替えて設定ください。
+
+`keyboards/claw44/rules.mk`:
+
+Tetrisではなく、Lifegameのソースを読み込みます。
+
+```diff
+ SRC += i2c.c
+ SRC += serial.c
+-SRC += ssd1306.c
++SRC += games/ssd1306.c
++SRC += games/screen.c
++SRC += games/xorshift.c
++SRC += games/lifegame.c
+```
+
+`keyboards/claw44/rev1/keymaps/default/keymap.c`:
+
+ファイルの先頭付近で、必要なファイルの `#include` と `Lifegame` オブジェクトの作成を行います。
+
+```diff
++#include "games/lifegame.h"
++#include "games/screen.h"
++
++Lifegame g_lifegame;
+```
+
+ライフゲームを最初からやり直す機能を割り当てるキーを定義します。
+既存キーでも構わない場合はここは飛ばしてください。
+また、すでにレイヤー切り替えなどでカスタムキーコードの定義がある場合は、
+そのenumに追加するほうがよいでしょう。
+
+```diff
++enum custom_keycodes {
++  KC_LGINI
++};
+```
+
+
+ユーザのキー入力を処理する関数（今回の場合は `process_record_user`）で、
+KC_LGINIキーが入力された時の処理を書きます。
+
+```diff
+ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
++  if (record->event.pressed) {
++    switch (keycode) {
++    case KC_LGINI:
++      lifegame_reset(&g_lifegame);
++      break;
++    }
++  }
++
+```
+
+
+
+また、KC_LGINIキーをマッピングします。
+下記ではRAISEレイヤーにマッピングしていますが、どこにマッピングしても構いません。
+
+```diff
+  [_RAISE] = LAYOUT( \
+  //,--------+--------+--------+--------+--------+--------.   ,--------+--------+--------+--------+--------+--------.
+     _______, KC_BSLS, KC_CIRC, KC_EXLM, KC_AMPR, KC_PIPE,     KC_AT  , KC_EQL , KC_PLUS, KC_ASTR, KC_PERC, KC_MINS,
+  //|--------+--------+--------+--------+--------+--------|   |--------+--------+--------+--------+--------+--------|
+     KC_LPRN, KC_HASH, KC_DLR , KC_DQT , KC_QUOT, KC_TILD,     KC_LEFT, KC_DOWN,  KC_UP , KC_RGHT, KC_GRV , KC_RPRN,
+  //|--------+--------+--------+--------+--------+--------|   |--------+--------+--------+--------+--------+--------|
+     _______, _______, _______, _______, KC_LCBR, KC_LBRC,     KC_RBRC, KC_RCBR, _______, _______, _______, _______,
+  //`--------+--------+--------+--------+--------+--------/   \--------+--------+--------+--------+--------+--------'
+-                       _______, _______, _______, _______,     _______, _______, _______, RESET
++                       _______, _______, _______, _______,     _______, _______,KC_LGINI, RESET
+  //                  `--------+--------+--------+--------'   `--------+--------+--------+--------'
+  ),
+```
+
+
+`iota_gfx_task_user(void)` 関数を既存の処理から完全に別にして、ゲームのロジック処理や描画処理を行います。
+
+```diff
++/*
+ void iota_gfx_task_user(void) {
+   struct CharacterMatrix matrix;
+ 
+@@ -601,5 +627,16 @@ void iota_gfx_task_user(void) {
+   }
+   matrix_update(&display, &matrix);
+ }
++*/
++
++void iota_gfx_task_user(void) {
++  ScreenMatrix matrix;
++  screen_clear(&matrix);
++
++  lifegame_update(&g_lifegame);
++  lifegame_render(&g_lifegame, &matrix);
++
++  screen_update(&g_screen, &matrix);
++}
+```
+
+
+
+
+
 ## 問題の報告について
 
 このリポジトリの issue に報告して下さい。

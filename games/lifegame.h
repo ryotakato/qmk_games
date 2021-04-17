@@ -9,7 +9,6 @@
 
 struct Lifegame {
   uint8_t blocks[LifegameHeight][LifegameWidth];
-  uint8_t backup[LifegameHeight][LifegameWidth];
   uint8_t gamestate;
   uint16_t lasttime;
   uint16_t speed;
